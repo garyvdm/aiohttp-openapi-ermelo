@@ -1,0 +1,25 @@
+[project]
+name = "aiohttp-openapi"
+version = "0.0"
+description = "Builds api schemas for aiohttp apps utilizing pydantic."
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = ["aiohttp", "pydantic", "openapi-pydantic"]
+
+[build-system]
+requires = ["setuptools >= 40.9.0"]
+build-backend = "setuptools.build_meta"
+
+[project.optional-dependencies]
+test = ["pytest", "pytest-aiohttp"]
+
+[tool.pytest]
+asyncio_mode = "auto"
+
+[tool.ruff]
+line-length = 120
+target-version = "py310"
+lint.extend-select = [
+    "I",  # isort
+    "UP",  # pyupgrade
+]
