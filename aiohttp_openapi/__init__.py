@@ -1,13 +1,21 @@
-from dataclasses import dataclass, field
+from collections.abc import Sequence
+from dataclasses import InitVar, dataclass, field
+from typing import Protocol
 
 from aiohttp.abc import AbstractView
 from aiohttp.typedefs import Handler
-from aiohttp.web import Application, Request, Response
+from aiohttp.web import Application
 from aiohttp.web_urldispatcher import AbstractRoute, _ExpectHandler
 from openapi_pydantic import OpenAPI, Operation, PathItem
+from yarl import URL
+
+from aiohttp_openapi._web_util import add_fixed_response_resource
+from aiohttp_openapi.swagger_ui import SwaggerUI
 
 __all__ = [
     "OpenAPIApp",
+    "SwaggerUI",
+    "APIDocUI",
 ]
 
 
@@ -21,16 +29,19 @@ class OpenAPIApp:
     app: Application
     schema: OpenAPI
     schema_path: str = "/schema.json"
+    api_doc_uis: InitVar[Sequence["APIDocUI"]] = field(default=())
+    api_doc_ui_urls: Sequence[URL] = field(init=False)
 
-    def __post_init__(self):
-        self.app.router.add_route("GET", self.schema_path, self._schema_handler)
-
-    _schema_json: str | None = field(init=False, repr=False, default=None)
-
-    async def _schema_handler(self, request: Request):
-        if self._schema_json is None:
-            self._schema_json = self.schema.model_dump_json(indent=2)
-        return Response(text=self._schema_json, content_type="application/json")
+    def __post_init__(self, schema_doc_uis: Sequence["APIDocUI"]):
+        schema_url = add_fixed_response_resource(
+            self.app.router,
+            self.schema_path,
+            get_response_args=lambda: dict(
+                text=self.schema.model_dump_json(indent=2, exclude_none=True),
+                content_type="application/json",
+            ),
+        ).url_for()
+        self.api_doc_ui_urls = [schema_doc_ui.setup(self.app, schema_url) for schema_doc_ui in schema_doc_uis]
 
     def add_route(
         self,
@@ -54,5 +65,8 @@ class OpenAPIApp:
         if method_lower not in _allowed_methods_lower:
             raise ValueError(f"method.lower() must be one of {_allowed_methods_lower}")
         setattr(path_item, method_lower, operation)
-
         return self.app.router.add_route(method, path, handler, name=name, expect_handler=expect_handler)
+
+
+class APIDocUI(Protocol):
+    def setup(self, app: Application, schema_url: URL) -> URL: ...

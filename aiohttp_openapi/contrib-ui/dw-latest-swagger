@@ -1,0 +1,36 @@
+#!/bin/bash
+
+set -e
+
+release_json=$(curl --show-error --silent --fail https://api.github.com/repos/swagger-api/swagger-ui/releases/latest)
+version=$(jq -r '.name' <<< "${release_json}")
+tar_url=$(jq -r '.tarball_url' <<< "${release_json}")
+
+tar_temp_file=$(mktemp swagger-ui.XXXXXXXXXX.tar --tmpdir)
+trap "rm -f '$tar_temp_file'" EXIT
+curl --show-error --silent --fail --location --output $tar_temp_file $tar_url
+
+cd $(dirname ${BASH_SOURCE[0]})
+
+old_version=$(cat swagger-ui/VERSION)
+
+rm -rf swagger-ui
+mkdir swagger-ui
+cd swagger-ui
+# bsdtar --file $tar_temp_file --list
+bsdtar --file $tar_temp_file --extract --strip-components=1  \
+    "swagger-api-swagger-ui-*/LICENSE" \
+    "swagger-api-swagger-ui-*/NOTICE"
+bsdtar --file $tar_temp_file --extract --strip-components=2  \
+    "swagger-api-swagger-ui-*/dist/swagger-ui.css" \
+    "swagger-api-swagger-ui-*/dist/favicon-32x32.png" \
+    "swagger-api-swagger-ui-*/dist/favicon-16x16.png" \
+    "swagger-api-swagger-ui-*/dist/swagger-ui-bundle.js" \
+    "swagger-api-swagger-ui-*/dist/swagger-ui-standalone-preset.js"
+
+echo "$version" > VERSION
+if [[ $old_version != $version ]]; then
+    echo "Swagger UI: $old_version -> $version"
+else
+    echo "Swagger UI: No change in version"
+fi
