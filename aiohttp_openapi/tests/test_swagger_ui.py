@@ -26,7 +26,7 @@ async def swagger_app():
         OpenAPI(info=Info(title="test-api", version="v0.0.1")),
         api_doc_uis=(SwaggerUI(),),
     )
-    openapi_app.add_route("GET", "/", hello, Operation(tags=["foo"], description="home"))
+    openapi_app.add_route("GET", "/", hello, operation=Operation(tags=["foo"], description="home"))
 
     async with setup_test_client(app) as client:
         yield client, openapi_app

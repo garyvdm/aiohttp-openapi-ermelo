@@ -3,11 +3,12 @@ name = "aiohttp-openapi"
 version = "0.0"
 description = "Builds api schemas for aiohttp apps utilizing pydantic."
 readme = "README.md"
-requires-python = ">=3.10"
+requires-python = ">=3.11"  # 3.10 not supported due to lack of typing.Unpack
 dependencies = ["aiohttp", "pydantic", "openapi-pydantic"]
 
 [project.optional-dependencies]
 test = ["pytest", "pytest-aiohttp", "pytest-playwright-asyncio"]
+yaml = ["pyyaml"]
 
 [build-system]
 requires = ["setuptools >= 40.9.0"]
@@ -18,12 +19,12 @@ aiohttp_openapi = ["contrib-ui/swagger-ui/*"]
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
-markers = ["playwright"]
+markers = ["playwright", "no_yaml"]
 asyncio_default_test_loop_scope="session"
 
 [tool.ruff]
 line-length = 120
-target-version = "py310"
+target-version = "py311"
 lint.extend-select = [
     "I",  # isort
     "UP",  # pyupgrade
