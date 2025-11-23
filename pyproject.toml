@@ -1,17 +1,17 @@
 [project]
-name = "aiohttp-openapi"
-version = "0.0"
+name = "aiohttp-openapi-ermelo"
 description = "Builds api schemas for aiohttp apps utilizing pydantic."
 readme = "README.md"
 requires-python = ">=3.11"  # 3.10 not supported due to lack of typing.Unpack
 dependencies = ["aiohttp", "pydantic", "openapi-pydantic"]
+dynamic = ["version"]
 
 [project.optional-dependencies]
 test = ["pytest", "pytest-aiohttp", "pytest-playwright-asyncio"]
 yaml = ["pyyaml"]
 
 [build-system]
-requires = ["setuptools >= 40.9.0"]
+requires = ["setuptools>=80", "setuptools-scm[simple]>=8"]
 build-backend = "setuptools.build_meta"
 
 [tool.setuptools.package-data]
