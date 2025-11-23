@@ -1,5 +1,6 @@
-default: ruff-fix testall
-check: ruff-check testall
+default: ruff-fix mypy testall
+[parallel]
+check: ruff-check mypy testall
 test: (_test "3.14" "")
 
 # Run tests across all versions.
@@ -15,6 +16,8 @@ _test version args:
 test_no_yaml:
     uv run --quiet --isolated --python python3.14 --extra test -- pytest --color yes -m no_yaml | tac | tac
 
+mypy: 
+    mypy -p aiohttp_openapi --check-untyped-defs
 
 ruff-fix:
     ruff format .

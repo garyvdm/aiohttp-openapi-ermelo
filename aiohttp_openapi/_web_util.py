@@ -65,6 +65,9 @@ def add_importlib_resource(
 class FixedResponseResource(PlainResource):
     VERSION_KEY = "v"
 
+    _response_args: Mapping[str, Any] | None
+    _hash: None | str
+
     def __init__(
         self,
         path: str,

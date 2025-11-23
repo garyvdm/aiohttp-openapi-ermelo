@@ -1,7 +1,7 @@
-from collections.abc import Sequence
+from collections.abc import Callable, Sequence
 from dataclasses import InitVar, dataclass, field
 from logging import getLogger
-from typing import Protocol, TypedDict, Unpack
+from typing import NotRequired, Protocol, TypedDict, Unpack, cast
 
 from aiohttp import hdrs
 from aiohttp.abc import AbstractView
@@ -26,21 +26,21 @@ logger = getLogger("aiohttp_openapi")
 
 
 class OperationArgs(TypedDict):
-    operation: Operation | None
+    operation: NotRequired[Operation]
     "Operation to add to schema for this handler. If omitted, one will be created."
-    json: str | bytes | bytearray | None
+    json: NotRequired[str | bytes | bytearray]
     "Operation in json format. Ignored if operation provided"
-    yaml: str | None
+    yaml: NotRequired[str | None]
     "Operation in yaml format. Ignored if operation provided"
-    yaml_docstring: bool
+    yaml_docstring: NotRequired[bool]
     "Should yaml be loaded form the docstring of the handler?"
-    summary_docstring: bool
+    summary_docstring: NotRequired[bool]
     "Should docstring of the handler be used as the summary?"
 
 
 class AddRouteArgs(OperationArgs):
-    name: str | None
-    expect_handler: _ExpectHandler | None
+    name: NotRequired[str]
+    expect_handler: NotRequired[_ExpectHandler]
 
 
 @dataclass
@@ -86,7 +86,6 @@ class OpenAPIApp:
         path: str,
         handler: Handler,
         *,
-        name: str | None = None,
         allow_head: bool = True,
         **kwargs: Unpack[AddRouteArgs],
     ) -> AbstractRoute:
@@ -95,10 +94,10 @@ class OpenAPIApp:
         If allow_head is true, another
         route is added allowing head requests to the same endpoint.
         """
-        resource = self.add_resource(path, name=name)
+        resource = self.add_resource(path, name=cast(str | None, kwargs.pop("name", None)))
         if allow_head:
-            resource.add_route(hdrs.METH_HEAD, handler, **kwargs)
-        return resource.add_route(hdrs.METH_GET, handler, **kwargs)
+            resource.add_route(hdrs.METH_HEAD, handler, **kwargs)  # type: ignore[misc]
+        return resource.add_route(hdrs.METH_GET, handler, **kwargs)  # type: ignore[misc]
 
     def add_head(self, path: str, handler: Handler, **kwargs: Unpack[AddRouteArgs]) -> AbstractRoute:
         """Shortcut for add_route with method HEAD."""
@@ -134,7 +133,7 @@ class OpenAPIApp:
 
 
 class ResourceAddRouteArgs(OperationArgs):
-    expect_handler: _ExpectHandler | None
+    expect_handler: NotRequired[_ExpectHandler]
 
 
 @dataclass
@@ -211,7 +210,7 @@ class APIDocUI(Protocol):
 
 
 def get_operation(
-    handler: Handler,
+    handler: Callable,
     operation: Operation | None = None,
     json: str | bytes | bytearray | None = None,
     yaml: str | None = None,
@@ -234,11 +233,9 @@ def get_operation(
                 logger.warning("Both operation and json provided. Ignoring json.", stacklevel=LOG_STACK_LEVEL)
             else:
                 operation = Operation.model_validate_json(json)
-        if yaml_docstring:
-            yaml = handler.__doc__
-            _, _, after = yaml.partition("---")
-            if after:
-                yaml = after
+        if yaml_docstring and handler.__doc__:
+            before, _, after = handler.__doc__.partition("---")
+            yaml = after if after else before
         if yaml:
             if operation:
                 logger.warning("Both operation and yaml provided. Ignoring yaml.", stacklevel=LOG_STACK_LEVEL)
