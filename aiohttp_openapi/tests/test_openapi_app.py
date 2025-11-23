@@ -1,3 +1,5 @@
+from textwrap import dedent
+
 from aiohttp import ClientResponse
 from aiohttp.web import Application, Request, Response
 from openapi_pydantic import Info, OpenAPI, Operation, PathItem
@@ -18,11 +20,26 @@ async def test_schema_handler():
         resp: ClientResponse = await client.get("/schema.json")
         assert resp.status == 200
         assert resp.content_type == "application/json"
-        print(repr(await resp.text()))
-        assert (
-            await resp.text()
-            == '{"openapi":"3.1.1","info":{"title":"test-api","summary":null,"description":null,"termsOfService":null,"contact":null,"license":null,"version":"v0.0.1"},"jsonSchemaDialect":null,"servers":[{"url":"/","description":null,"variables":null}],"paths":{"/":{"ref":null,"summary":null,"description":null,"get":{"tags":null,"summary":"home","description":null,"externalDocs":null,"operationId":null,"parameters":null,"requestBody":null,"responses":null,"callbacks":null,"deprecated":false,"security":null,"servers":null},"put":null,"post":null,"delete":null,"options":null,"head":null,"patch":null,"trace":null,"servers":null,"parameters":null}},"webhooks":null,"components":null,"security":null,"tags":null,"externalDocs":null}'
-        )
+        print(await resp.text())
+        expected_text = dedent(
+            """
+            {
+             "info": {
+              "title": "test-api",
+              "version": "v0.0.1"
+             },
+             "paths": {
+              "/": {
+               "get": {
+                "summary": "home"
+               }
+              }
+             }
+            }
+            """
+        ).strip()
+
+        assert await resp.text() == expected_text
 
 
 def test_add_route():

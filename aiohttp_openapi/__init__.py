@@ -52,7 +52,9 @@ class OpenAPIApp:
             self.app.router,
             self.schema_path,
             get_response_args=lambda: dict(
-                text=self.schema.model_dump_json(),
+                text=self.schema.model_dump_json(
+                    include=self.schema.model_fields_set | {"openapi", "info"}, exclude_unset=True, indent=1
+                ),
                 content_type="application/json",
             ),
         ).url_for()
