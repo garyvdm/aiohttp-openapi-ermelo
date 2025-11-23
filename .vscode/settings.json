@@ -13,7 +13,7 @@
     "python.testing.pytestArgs": [
         "--color=yes",
         "-rA",
-        "-v",
+        // "-v",
     ],
     "python.analysis.inlayHints.pytestParameters": true,
     "python.analysis.inlayHints.functionReturnTypes": true,

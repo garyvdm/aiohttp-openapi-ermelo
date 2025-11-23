@@ -7,7 +7,7 @@ dependencies = ["aiohttp", "pydantic", "openapi-pydantic"]
 dynamic = ["version"]
 
 [project.optional-dependencies]
-test = ["pytest", "pytest-aiohttp", "pytest-playwright-asyncio", "mypy", "types-PyYAML"]
+test = ["pytest", "pytest-aiohttp", "pytest-playwright-asyncio", "mypy", "types-PyYAML", "pytest-cov"]
 yaml = ["pyyaml"]
 
 [build-system]

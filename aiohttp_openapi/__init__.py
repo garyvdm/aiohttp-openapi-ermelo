@@ -8,7 +8,19 @@ from aiohttp.abc import AbstractView
 from aiohttp.typedefs import Handler
 from aiohttp.web import Application
 from aiohttp.web_urldispatcher import AbstractRoute, Resource, ResourceRoute, _ExpectHandler
-from openapi_pydantic import OpenAPI, Operation, PathItem
+from openapi_pydantic import (
+    Callback,
+    ExternalDocumentation,
+    OpenAPI,
+    Operation,
+    Parameter,
+    PathItem,
+    Reference,
+    RequestBody,
+    Responses,
+    SecurityRequirement,
+    Server,
+)
 from pydantic import ValidationError
 from yarl import URL
 
@@ -23,24 +35,6 @@ __all__ = [
 ]
 
 logger = getLogger("aiohttp_openapi")
-
-
-class OperationArgs(TypedDict):
-    operation: NotRequired[Operation]
-    "Operation to add to schema for this handler. If omitted, one will be created."
-    json: NotRequired[str | bytes | bytearray]
-    "Operation in json format. Ignored if operation provided"
-    yaml: NotRequired[str | None]
-    "Operation in yaml format. Ignored if operation provided"
-    yaml_docstring: NotRequired[bool]
-    "Should yaml be loaded form the docstring of the handler?"
-    summary_docstring: NotRequired[bool]
-    "Should docstring of the handler be used as the summary?"
-
-
-class AddRouteArgs(OperationArgs):
-    name: NotRequired[str]
-    expect_handler: NotRequired[_ExpectHandler]
 
 
 @dataclass
@@ -72,7 +66,7 @@ class OpenAPIApp:
         *,
         name: str | None = None,
         expect_handler: _ExpectHandler | None = None,
-        **operation_args: Unpack[OperationArgs],
+        **operation_args: Unpack["GetOperationArgs"],
     ) -> AbstractRoute:
         operation = get_operation(handler, **operation_args)
         setattr(self._get_or_create_path_item(path), check_valid_method(method), operation)
@@ -87,7 +81,7 @@ class OpenAPIApp:
         handler: Handler,
         *,
         allow_head: bool = True,
-        **kwargs: Unpack[AddRouteArgs],
+        **kwargs: Unpack["AddRouteArgs"],
     ) -> AbstractRoute:
         """Shortcut for add_route with method GET.
 
@@ -99,27 +93,27 @@ class OpenAPIApp:
             resource.add_route(hdrs.METH_HEAD, handler, **kwargs)  # type: ignore[misc]
         return resource.add_route(hdrs.METH_GET, handler, **kwargs)  # type: ignore[misc]
 
-    def add_head(self, path: str, handler: Handler, **kwargs: Unpack[AddRouteArgs]) -> AbstractRoute:
+    def add_head(self, path: str, handler: Handler, **kwargs: Unpack["AddRouteArgs"]) -> AbstractRoute:
         """Shortcut for add_route with method HEAD."""
         return self.add_route(hdrs.METH_HEAD, path, handler, **kwargs)
 
-    def add_options(self, path: str, handler: Handler, **kwargs: Unpack[AddRouteArgs]) -> AbstractRoute:
+    def add_options(self, path: str, handler: Handler, **kwargs: Unpack["AddRouteArgs"]) -> AbstractRoute:
         """Shortcut for add_route with method OPTIONS."""
         return self.add_route(hdrs.METH_OPTIONS, path, handler, **kwargs)
 
-    def add_post(self, path: str, handler: Handler, **kwargs: Unpack[AddRouteArgs]) -> AbstractRoute:
+    def add_post(self, path: str, handler: Handler, **kwargs: Unpack["AddRouteArgs"]) -> AbstractRoute:
         """Shortcut for add_route with method POST."""
         return self.add_route(hdrs.METH_POST, path, handler, **kwargs)
 
-    def add_put(self, path: str, handler: Handler, **kwargs: Unpack[AddRouteArgs]) -> AbstractRoute:
+    def add_put(self, path: str, handler: Handler, **kwargs: Unpack["AddRouteArgs"]) -> AbstractRoute:
         """Shortcut for add_route with method PUT."""
         return self.add_route(hdrs.METH_PUT, path, handler, **kwargs)
 
-    def add_patch(self, path: str, handler: Handler, **kwargs: Unpack[AddRouteArgs]) -> AbstractRoute:
+    def add_patch(self, path: str, handler: Handler, **kwargs: Unpack["AddRouteArgs"]) -> AbstractRoute:
         """Shortcut for add_route with method PATCH."""
         return self.add_route(hdrs.METH_PATCH, path, handler, **kwargs)
 
-    def add_delete(self, path: str, handler: Handler, **kwargs: Unpack[AddRouteArgs]) -> AbstractRoute:
+    def add_delete(self, path: str, handler: Handler, **kwargs: Unpack["AddRouteArgs"]) -> AbstractRoute:
         """Shortcut for add_route with method DELETE."""
         return self.add_route(hdrs.METH_DELETE, path, handler, **kwargs)
 
@@ -130,10 +124,6 @@ class OpenAPIApp:
         if path_item is None:
             self.schema.paths[path] = path_item = PathItem()
         return path_item
-
-
-class ResourceAddRouteArgs(OperationArgs):
-    expect_handler: NotRequired[_ExpectHandler]
 
 
 @dataclass
@@ -147,7 +137,7 @@ class OpenAPIResource:
         handler: type[AbstractView] | Handler,
         *,
         expect_handler: _ExpectHandler | None = None,
-        **operation_args: Unpack[OperationArgs],
+        **operation_args: Unpack["GetOperationArgs"],
     ) -> ResourceRoute:
         setattr(self.path_item, check_valid_method(method), get_operation(handler, **operation_args))
         return self.resource.add_route(method, handler, expect_handler=expect_handler)
@@ -157,7 +147,7 @@ class OpenAPIResource:
         handler: Handler,
         *,
         allow_head: bool = True,
-        **kwargs: Unpack[ResourceAddRouteArgs],
+        **kwargs: Unpack["ResourceAddRouteArgs"],
     ) -> AbstractRoute:
         """Shortcut for add_route with method GET.
 
@@ -168,45 +158,165 @@ class OpenAPIResource:
             self.add_route(hdrs.METH_HEAD, handler, **kwargs)
         return self.add_route(hdrs.METH_GET, handler, **kwargs)
 
-    def add_head(self, handler: Handler, **kwargs: Unpack[ResourceAddRouteArgs]) -> AbstractRoute:
+    def add_head(self, handler: Handler, **kwargs: Unpack["ResourceAddRouteArgs"]) -> AbstractRoute:
         """Shortcut for add_route with method HEAD."""
         return self.add_route(hdrs.METH_HEAD, handler, **kwargs)
 
-    def add_options(self, handler: Handler, **kwargs: Unpack[ResourceAddRouteArgs]) -> AbstractRoute:
+    def add_options(self, handler: Handler, **kwargs: Unpack["ResourceAddRouteArgs"]) -> AbstractRoute:
         """Shortcut for add_route with method OPTIONS."""
         return self.add_route(hdrs.METH_OPTIONS, handler, **kwargs)
 
-    def add_post(self, handler: Handler, **kwargs: Unpack[ResourceAddRouteArgs]) -> AbstractRoute:
+    def add_post(self, handler: Handler, **kwargs: Unpack["ResourceAddRouteArgs"]) -> AbstractRoute:
         """Shortcut for add_route with method POST."""
         return self.add_route(hdrs.METH_POST, handler, **kwargs)
 
-    def add_put(self, handler: Handler, **kwargs: Unpack[ResourceAddRouteArgs]) -> AbstractRoute:
+    def add_put(self, handler: Handler, **kwargs: Unpack["ResourceAddRouteArgs"]) -> AbstractRoute:
         """Shortcut for add_route with method PUT."""
         return self.add_route(hdrs.METH_PUT, handler, **kwargs)
 
-    def add_patch(self, handler: Handler, **kwargs: Unpack[ResourceAddRouteArgs]) -> AbstractRoute:
+    def add_patch(self, handler: Handler, **kwargs: Unpack["ResourceAddRouteArgs"]) -> AbstractRoute:
         """Shortcut for add_route with method PATCH."""
         return self.add_route(hdrs.METH_PATCH, handler, **kwargs)
 
-    def add_delete(self, handler: Handler, **kwargs: Unpack[ResourceAddRouteArgs]) -> AbstractRoute:
+    def add_delete(self, handler: Handler, **kwargs: Unpack["ResourceAddRouteArgs"]) -> AbstractRoute:
         """Shortcut for add_route with method DELETE."""
         return self.add_route(hdrs.METH_DELETE, handler, **kwargs)
 
 
-def check_valid_method(method: str):
-    if not isinstance(method, str):
-        raise TypeError("method must be a str")
-    method_lower = method.lower()
-    if method_lower not in _allowed_methods_lower:
-        raise ValueError(f"method.lower() must be one of {_allowed_methods_lower}")
-    return method_lower
+def operation(**kwargs: Unpack["GetOperationArgs"]):
+    """Decorate a handler with it's operation information."""
 
+    def decorate(handler):
+        handler.open_api_operation = get_operation(handler, **kwargs)
+        return handler
 
-_allowed_methods_lower = {"get", "put", "post", "delete", "options", "head", "patch", "trace"}
+    return decorate
 
 
 class APIDocUI(Protocol):
     def setup(self, app: Application, schema_url: URL) -> URL: ...
+
+
+class GetOperationArgs(TypedDict):
+    operation: NotRequired[Operation]
+    "Operation to add to schema for this handler. If omitted, one will be created."
+    json: NotRequired[str | bytes | bytearray]
+    "Operation in json format. Ignored if operation provided"
+    yaml: NotRequired[str | None]
+    "Operation in yaml format. Ignored if operation provided"
+    yaml_docstring: NotRequired[bool]
+    "Should yaml be loaded form the docstring of the handler?"
+    summary_docstring: NotRequired[bool]
+    "Should docstring of the handler be used as the summary?"
+
+    # All args for Operation
+
+    tags: NotRequired[list[str]]
+    """
+    A list of tags for API documentation control.
+    Tags can be used for logical grouping of operations by resources or any other 
+    qualifier.
+    """
+
+    summary: NotRequired[str]
+    """
+    A short summary of what the operation does.
+    """
+
+    description: NotRequired[str]
+    """
+    A verbose explanation of the operation behavior.
+    [CommonMark syntax](https://spec.commonmark.org/) MAY be used for rich text 
+    representation.
+    """
+
+    externalDocs: NotRequired[ExternalDocumentation]
+    """
+    Additional external documentation for this operation.
+    """
+
+    operationId: NotRequired[str]
+    """
+    Unique string used to identify the operation.
+    The id MUST be unique among all operations described in the API.
+    The operationId value is **case-sensitive**.
+    Tools and libraries MAY use the operationId to uniquely identify an operation,
+    therefore, it is RECOMMENDED to follow common programming naming conventions.
+    """
+
+    parameters: NotRequired[list[Parameter | Reference]]
+    """
+    A list of parameters that are applicable for this operation.
+    If a parameter is already defined at the [Path Item](#pathItemParameters),
+    the new definition will override it but can never remove it.
+    The list MUST NOT include duplicated parameters.
+    A unique parameter is defined by a combination of a [name](#parameterName) and 
+    [location](#parameterIn). The list can use the [Reference Object](#referenceObject) 
+    to link to parameters that are defined at the 
+    [OpenAPI Object's components/parameters](#componentsParameters).
+    """
+
+    requestBody: NotRequired[RequestBody | Reference]
+    """
+    The request body applicable for this operation.  
+    
+    The `requestBody` is fully supported in HTTP methods where the HTTP 1.1 
+    specification [RFC7231](https://tools.ietf.org/html/rfc7231#section-4.3.1) has 
+    explicitly defined semantics for request bodies.
+    In other cases where the HTTP spec is vague (such as [GET](https://tools.ietf.org/html/rfc7231#section-4.3.1),
+    [HEAD](https://tools.ietf.org/html/rfc7231#section-4.3.2)
+    and [DELETE](https://tools.ietf.org/html/rfc7231#section-4.3.5)),
+    `requestBody` is permitted but does not have well-defined semantics and SHOULD be 
+    avoided if possible.
+    """
+
+    responses: NotRequired[Responses]
+    """
+    The list of possible responses as they are returned from executing this operation.
+    """
+
+    callbacks: NotRequired[dict[str, Callback | Reference]]
+    """
+    A map of possible out-of band callbacks related to the parent operation.
+    The key is a unique identifier for the Callback Object.
+    Each value in the map is a [Callback Object](#callbackObject) 
+    that describes a request that may be initiated by the API provider and the expected 
+    responses.
+    """
+
+    deprecated: NotRequired[bool]
+    """
+    Declares this operation to be deprecated.
+    Consumers SHOULD refrain from usage of the declared operation.
+    Default value is `false`.
+    """
+
+    security: NotRequired[list[SecurityRequirement]]
+    """
+    A declaration of which security mechanisms can be used for this operation.
+    The list of values includes alternative security requirement objects that can be 
+    used. Only one of the security requirement objects need to be satisfied to 
+    authorize a request. To make security optional, an empty security requirement 
+    (`{}`) can be included in the array. This definition overrides any declared 
+    top-level [`security`](#oasSecurity). To remove a top-level security declaration, 
+    an empty array can be used.
+    """
+
+    servers: NotRequired[list[Server]]
+    """
+    An alternative `server` array to service this operation.
+    If an alternative `server` object is specified at the Path Item Object or Root 
+    level, it will be overridden by this value.
+    """
+
+
+class AddRouteArgs(GetOperationArgs):
+    name: NotRequired[str]
+    expect_handler: NotRequired[_ExpectHandler]
+
+
+class ResourceAddRouteArgs(GetOperationArgs):
+    expect_handler: NotRequired[_ExpectHandler]
 
 
 def get_operation(
@@ -216,29 +326,49 @@ def get_operation(
     yaml: str | None = None,
     yaml_docstring: bool = False,
     summary_docstring: bool = True,
+    **operation_args,
 ) -> Operation:
     LOG_STACK_LEVEL = 3
-
+    source = ""
     try:
+        if operation:
+            source = "operation argument"
         decorated_operation = getattr(handler, "open_api_operation", None)
         if decorated_operation:
             if operation:
                 logger.warning(
-                    "operation provided, but handler already decorated with operation. Ignoring operation.",
+                    f"Both {source} provided and decorated with @operation. Ignoring decoration with @operation.",
                     stacklevel=3,
                 )
-            operation = decorated_operation
+            else:
+                source = "decorated with @operation"
+                operation = decorated_operation
         if json:
             if operation:
-                logger.warning("Both operation and json provided. Ignoring json.", stacklevel=LOG_STACK_LEVEL)
+                logger.warning(
+                    f"Both {source} and json argument provided. Ignoring json argument.", stacklevel=LOG_STACK_LEVEL
+                )
             else:
+                source = "json argument"
                 operation = Operation.model_validate_json(json)
+        yaml_source = ""
+        if yaml:
+            yaml_source = "yaml argument"
         if yaml_docstring and handler.__doc__:
-            before, _, after = handler.__doc__.partition("---")
-            yaml = after if after else before
+            if yaml:
+                logger.warning(
+                    "Both yaml argument and yaml docstring provided. Ignoring yaml docstring.",
+                    stacklevel=LOG_STACK_LEVEL,
+                )
+            else:
+                yaml_source = "yaml docstring"
+                before, _, after = handler.__doc__.partition("---")
+                yaml = after if after else before
         if yaml:
             if operation:
-                logger.warning("Both operation and yaml provided. Ignoring yaml.", stacklevel=LOG_STACK_LEVEL)
+                logger.warning(
+                    f"Both {source} and {yaml_source} provided. Ignoring {yaml_source}.", stacklevel=LOG_STACK_LEVEL
+                )
             else:
                 try:
                     from yaml import safe_load
@@ -258,16 +388,27 @@ def get_operation(
         logger.warning("Error loading operation:", stacklevel=LOG_STACK_LEVEL, exc_info=True)
     if operation is None:
         operation = Operation()
-    if summary_docstring and not yaml_docstring and operation.summary is None and handler.__doc__:
+    if summary_docstring and not yaml_docstring and not operation.summary and handler.__doc__:
         operation = operation.model_copy(update=dict(summary=handler.__doc__))
+
+    for key in operation_args:
+        if key in operation.model_fields_set:
+            logger.warning(
+                f"{key} argument provided, and already provided by {source}. Overwriting with {key} argument.",
+                stacklevel=LOG_STACK_LEVEL,
+            )
+    operation = operation.model_copy(update=operation_args)
+
     return operation
 
 
-def operation(**kwargs: Unpack[OperationArgs]):
-    """Decorate a handler with it's operation information."""
+def check_valid_method(method: str):
+    if not isinstance(method, str):
+        raise TypeError("method must be a str")
+    method_lower = method.lower()
+    if method_lower not in allowed_methods_lower:
+        raise ValueError(f"method.lower() must be one of {allowed_methods_lower}")
+    return method_lower
 
-    def decorate(handler):
-        handler.open_api_operation = get_operation(handler, **kwargs)
-        return handler
 
-    return decorate
+allowed_methods_lower = {"get", "put", "post", "delete", "options", "head", "patch", "trace"}

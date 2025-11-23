@@ -25,7 +25,7 @@ def no_warnings_or_errors(caplog: LogCaptureFixture):
 
 
 def test_operation(caplog):
-    with caplog.at_level(WARNING, "aiohttp_openapi"):
+    with no_warnings_or_errors(caplog):
         operation = Operation(summary="test")
         # Check that it gets passed through no changes.
         assert get_operation(handler_no_doc, operation=operation) == operation
@@ -45,16 +45,17 @@ def test_decorated(caplog):
 def test_decorated_and_operation_warning(caplog):
     with caplog.at_level(WARNING, "aiohttp_openapi"):
 
-        @operation(operation=Operation(summary="expected summary"))
+        @operation(operation=Operation(summary="summary from decorator"))
         def handler_decorated(request): ...
 
-        ret_opperation = get_operation(handler_decorated, operation=Operation(summary="summary from get_operation"))
+        ret_opperation = get_operation(handler_decorated, operation=Operation(summary="expected summary"))
         assert ret_opperation.summary == "expected summary"
+        print(caplog.record_tuples)
         assert caplog.record_tuples == [
             (
                 "aiohttp_openapi",
                 WARNING,
-                "operation provided, but handler already decorated with operation. Ignoring operation.",
+                "Both operation argument provided and decorated with @operation. Ignoring decoration with @operation.",
             )
         ]
 
@@ -75,6 +76,21 @@ def test_operation_summary_docstring(caplog):
         assert operation is not ret_operation
 
 
+def test_operation_args(caplog):
+    with no_warnings_or_errors(caplog):
+        assert get_operation(handler_no_doc, summary="test") == Operation(summary="test")
+
+
+def test_operation_args_overwrite_warning(caplog):
+    with caplog.at_level(WARNING, "aiohttp_openapi"):
+        assert get_operation(
+            handler_no_doc,
+            operation=Operation(summary="test"),
+            summary="Expected summary",
+        ) == Operation(summary="Expected summary")
+        print(caplog.record_tuples)
+
+
 def test_json(caplog):
     with no_warnings_or_errors(caplog):
         assert get_operation(handler_no_doc, json='{"summary": "do something"}').summary == "do something"
@@ -88,7 +104,9 @@ def test_json_invalid_schema(caplog):
             (
                 "aiohttp_openapi",
                 WARNING,
-                "1 validation error for Operation\ntags\n  Input should be a valid array [type=list_type, input_value='bar', input_type=str]\n    For further information visit https://errors.pydantic.dev/2.12/v/list_type",
+                "1 validation error for Operation\ntags\n  Input should be a valid array [type=list_type, "
+                "input_value='bar', input_type=str]\n    "
+                "For further information visit https://errors.pydantic.dev/2.12/v/list_type",
             )
         ]
 
@@ -101,7 +119,9 @@ def test_json_invalid_json(caplog):
             (
                 "aiohttp_openapi",
                 WARNING,
-                "1 validation error for Operation\n  Invalid JSON: EOF while parsing an object at line 1 column 1 [type=json_invalid, input_value='{', input_type=str]\n    For further information visit https://errors.pydantic.dev/2.12/v/json_invalid",
+                "1 validation error for Operation\n  Invalid JSON: EOF while parsing an object at line 1 column 1 "
+                "[type=json_invalid, input_value='{', input_type=str]\n    "
+                "For further information visit https://errors.pydantic.dev/2.12/v/json_invalid",
             )
         ]
 
@@ -113,8 +133,9 @@ def test_operation_and_json_warn(caplog):
             operation=Operation(summary="do something"),
             json='{"summary": "do something"}',
         )
+        print(caplog.record_tuples)
         assert caplog.record_tuples == [
-            ("aiohttp_openapi", WARNING, "Both operation and json provided. Ignoring json.")
+            ("aiohttp_openapi", WARNING, "Both operation argument and json argument provided. Ignoring json argument.")
         ]
 
 
@@ -144,7 +165,7 @@ def test_operation_and_yaml_error(caplog):
             yaml="summary: do something",
         )
         assert caplog.record_tuples == [
-            ("aiohttp_openapi", WARNING, "Both operation and yaml provided. Ignoring yaml.")
+            ("aiohttp_openapi", WARNING, "Both operation argument and yaml argument provided. Ignoring yaml argument.")
         ]
 
 
@@ -156,7 +177,8 @@ def test_yaml_invalid_yaml(caplog):
             (
                 "aiohttp_openapi",
                 WARNING,
-                'while scanning a quoted scalar\n  in "<unicode string>", line 1, column 1:\n    "x\n    ^\nfound unexpected end of stream\n  in "<unicode string>", line 1, column 3:\n    "x\n      ^',
+                'while scanning a quoted scalar\n  in "<unicode string>", line 1, column 1:\n    "x\n    ^\n'
+                'found unexpected end of stream\n  in "<unicode string>", line 1, column 3:\n    "x\n      ^',
             )
         ]
 
