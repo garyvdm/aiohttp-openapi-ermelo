@@ -16,6 +16,7 @@ async def hello(request: Request):
 async def test_schema_handler():
     openapi_app = OpenAPIApp(Application(), OpenAPI(info=Info(title="test-api", version="v0.0.1")))
     openapi_app.add_route("GET", "/", hello)
+
     async with setup_test_client(openapi_app.app) as client:
         resp: ClientResponse = await client.get("/schema.json")
         assert resp.status == 200
@@ -24,6 +25,7 @@ async def test_schema_handler():
         expected_text = dedent(
             """
             {
+             "openapi": "3.1.1",
              "info": {
               "title": "test-api",
               "version": "v0.0.1"
@@ -46,10 +48,7 @@ def test_add_route():
     openapi_app = OpenAPIApp(Application(), OpenAPI(info=Info(title="test-api", version="v0.0.1")))
     openapi_app.add_route("GET", "/", hello)
 
-    assert openapi_app.schema == OpenAPI(
-        info=Info(title="test-api", version="v0.0.1"),
-        paths={"/": PathItem(get=Operation(summary="home"))},
-    )
+    assert openapi_app.schema.paths == {"/": PathItem(get=Operation(summary="home"))}
 
 
 def test_add_resource_route():
@@ -57,10 +56,7 @@ def test_add_resource_route():
     home_resource = openapi_app.add_resource("/")
     home_resource.add_route("GET", hello)
 
-    assert openapi_app.schema == OpenAPI(
-        info=Info(title="test-api", version="v0.0.1"),
-        paths={"/": PathItem(get=Operation(summary="home"))},
-    )
+    assert openapi_app.schema.paths == {"/": PathItem(get=Operation(summary="home"))}
 
 
 def test_add_route_helpers():
@@ -75,22 +71,19 @@ def test_add_route_helpers():
     openapi_app.add_get("/no-head", hello, allow_head=False)
     openapi_app.add_head("/only-head", hello)
 
-    assert openapi_app.schema == OpenAPI(
-        info=Info(title="test-api", version="v0.0.1"),
-        paths={
-            "/": PathItem(
-                get=Operation(summary="home"),
-                head=Operation(summary="home"),
-                put=Operation(summary="home"),
-                post=Operation(summary="home"),
-                patch=Operation(summary="home"),
-                delete=Operation(summary="home"),
-                options=Operation(summary="home"),
-            ),
-            "/no-head": PathItem(get=Operation(summary="home")),
-            "/only-head": PathItem(head=Operation(summary="home")),
-        },
-    )
+    assert openapi_app.schema.paths == {
+        "/": PathItem(
+            get=Operation(summary="home"),
+            head=Operation(summary="home"),
+            put=Operation(summary="home"),
+            post=Operation(summary="home"),
+            patch=Operation(summary="home"),
+            delete=Operation(summary="home"),
+            options=Operation(summary="home"),
+        ),
+        "/no-head": PathItem(get=Operation(summary="home")),
+        "/only-head": PathItem(head=Operation(summary="home")),
+    }
 
 
 def test_resource_add_route_helpers():
@@ -107,22 +100,19 @@ def test_resource_add_route_helpers():
     openapi_app.add_resource("/no-head").add_get(hello, allow_head=False)
     openapi_app.add_resource("/only-head").add_head(hello)
 
-    assert openapi_app.schema == OpenAPI(
-        info=Info(title="test-api", version="v0.0.1"),
-        paths={
-            "/": PathItem(
-                get=Operation(summary="home"),
-                head=Operation(summary="home"),
-                put=Operation(summary="home"),
-                post=Operation(summary="home"),
-                patch=Operation(summary="home"),
-                delete=Operation(summary="home"),
-                options=Operation(summary="home"),
-            ),
-            "/no-head": PathItem(get=Operation(summary="home")),
-            "/only-head": PathItem(head=Operation(summary="home")),
-        },
-    )
+    assert openapi_app.schema.paths == {
+        "/": PathItem(
+            get=Operation(summary="home"),
+            head=Operation(summary="home"),
+            put=Operation(summary="home"),
+            post=Operation(summary="home"),
+            patch=Operation(summary="home"),
+            delete=Operation(summary="home"),
+            options=Operation(summary="home"),
+        ),
+        "/no-head": PathItem(get=Operation(summary="home")),
+        "/only-head": PathItem(head=Operation(summary="home")),
+    }
 
 
 def test_add_route_decorated():

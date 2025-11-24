@@ -26,7 +26,7 @@ async def swagger_app():
         OpenAPI(info=Info(title="test-api", version="v0.0.1")),
         api_doc_uis=(SwaggerUI(),),
     )
-    openapi_app.add_route("GET", "/", hello, operation=Operation(tags=["foo"], description="home"))
+    openapi_app.add_route("GET", "/hello", hello, operation=Operation(tags=["foo"]))
 
     async with setup_test_client(app) as client:
         yield client, openapi_app
@@ -45,4 +45,9 @@ async def test_e2e(page: Page):
     async with swagger_app() as (client, openapi_app):
         url = client.make_url(openapi_app.api_doc_ui_urls[0])
         await page.goto(str(url))
+        # await page.pause()
+        # Just some basic checks to assert that the schema was loaded
         await expect(page.locator("#swagger-ui")).not_to_be_empty()
+        await expect(page.locator(".opblock-summary-path")).to_have_text("/hello")
+        # This exists when there are schema errors
+        await expect(page.locator(".version-pragma")).to_have_count(0)
