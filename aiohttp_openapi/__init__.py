@@ -1,6 +1,5 @@
 from collections.abc import Callable, Sequence
 from dataclasses import InitVar, dataclass, field
-from functools import partial
 from logging import getLogger
 from typing import NotRequired, Protocol, TypedDict, Unpack, cast
 
@@ -49,10 +48,22 @@ class OpenAPIApp:
     api_doc_ui_urls: Sequence[URL] = field(init=False)
 
     def __post_init__(self, schema_doc_uis: Sequence["APIDocUI"]):
+        self.schema.openapi = self.schema.openapi  # So that pydantic includes it in the dump. (bit of a hack 😭)
         schema_url = add_fixed_response_resource(
-            self.app.router, self.schema_path, get_response_args=partial(get_schema_response, self.schema)
+            self.app.router,
+            self.schema_path,
+            get_response_args=lambda: dict(
+                text=self.schema_dump_json(),
+                content_type="application/json",
+            ),
         ).url_for()
         self.api_doc_ui_urls = [schema_doc_ui.setup(self.app, schema_url) for schema_doc_ui in schema_doc_uis]
+
+    def schema_dump_json(self):
+        return self.schema.model_dump_json(exclude_unset=True, indent=1, by_alias=True)
+
+    def schema_dump(self):
+        return self.schema.model_dump(mode="json", exclude_unset=True, by_alias=True)
 
     def add_route(
         self,
@@ -408,14 +419,3 @@ def check_valid_method(method: str):
 
 
 allowed_methods_lower = {"get", "put", "post", "delete", "options", "head", "patch", "trace"}
-
-
-def get_schema_response(schema: OpenAPI):
-    schema.openapi = schema.openapi  # So that pydantic includes it in the dump. (bit of a hack 😭)
-    return dict(
-        text=schema.model_dump_json(
-            exclude_unset=True,
-            indent=1,
-        ),
-        content_type="application/json",
-    )

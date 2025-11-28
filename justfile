@@ -11,13 +11,13 @@ test: (_test "3.14" "")
 testall:  (_test "3.14" "-m 'not no_yaml'") (_test "3.13" "-m 'not playwright and not no_yaml'") (_test "3.12" "-m 'not playwright and not no_yaml'") (_test "3.11" "-m 'not playwright and not no_yaml'") test_no_yaml
 
 _test version args:
-    uv run --quiet --isolated --python python{{version}} --extra test --extra yaml -- pytest --color yes {{args}} | tac | tac
+    uv run --isolated --python python{{version}} --extra test --extra yaml -- pytest --color yes {{args}} | tac | tac
 
 test_no_yaml:
-    uv run --quiet --isolated --python python3.14 --extra test -- pytest --color yes -m no_yaml | tac | tac
+    uv run --isolated --python python3.14 --extra test -- pytest --color yes -m no_yaml | tac | tac
 
 mypy: 
-    mypy -p aiohttp_openapi --check-untyped-defs
+    uv run --python python3.14 --extra test mypy -p aiohttp_openapi --check-untyped-defs
 
 ruff-fix:
     ruff format .
