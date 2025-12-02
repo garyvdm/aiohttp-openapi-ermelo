@@ -1,13 +1,15 @@
 import importlib.resources
 from functools import partial
 from string import Template
-from typing import Literal
+from typing import TYPE_CHECKING, Literal
 
-from aiohttp.web import Application
 from pydantic import BaseModel, ConfigDict, Field
 from yarl import URL
 
 from aiohttp_openapi._web_util import add_fixed_response_resource, add_importlib_resource
+
+if TYPE_CHECKING:
+    from aiohttp_openapi import OpenAPIApp
 
 
 class SwaggerUI(BaseModel):
@@ -17,7 +19,7 @@ class SwaggerUI(BaseModel):
 
     model_config = ConfigDict(use_attribute_docstrings=True)
 
-    ui_path: str = Field(exclude=True, default="/swagger-ui/")
+    ui_path: str = Field(exclude=True, default="swagger-ui/")
     """URL path to host the ui at."""
 
     # Plugin
@@ -77,16 +79,16 @@ class SwaggerUI(BaseModel):
     `swagger-js#1163 <https://github.com/swagger-api/swagger-js/issues/1163>`_) - as a result, you will have to rely 
     on browser-supplied cookies (which this setting enables sending) that Swagger UI cannot control. """
 
-    def setup(self, app: Application, schema_url: URL) -> URL:
+    def setup(self, openapi_app: "OpenAPIApp") -> URL:
         static_resource = partial(
             add_importlib_resource,
-            app.router,
-            self.ui_path,
+            openapi_app.app.router,
+            openapi_app.url_base_.joinpath(self.ui_path),
             importlib.resources.files("aiohttp_openapi").joinpath("contrib-ui/swagger-ui/"),
             append_version=True,
         )
         html_text = html_template.substitute(
-            url=schema_url,
+            url=openapi_app.schema_url,
             settings=self.model_dump_json(exclude_unset=True),
             css=static_resource("swagger-ui.css", content_type="text/css").url_for(),
             favicon_32=static_resource("favicon-32x32.png", content_type="image/png").url_for(),
@@ -97,9 +99,9 @@ class SwaggerUI(BaseModel):
             ).url_for(),
         )
         return add_fixed_response_resource(
-            app.router,
-            self.ui_path,
-            name="swagger-ui",
+            openapi_app.app.router,
+            openapi_app.url_base_.joinpath(self.ui_path).path,
+            name=f"{openapi_app.name}-swagger-ui" if openapi_app.name else None,
             text=html_text,
             content_type="text/html",
         ).url_for()

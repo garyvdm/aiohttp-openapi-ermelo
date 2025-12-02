@@ -44,21 +44,28 @@ class OpenAPIApp:
 
     app: Application
     schema: OpenAPI
-    schema_path: str = "/schema.json"
-    api_doc_uis: InitVar[Sequence["APIDocUI"]] = field(default=())
-    api_doc_ui_urls: Sequence[URL] = field(init=False)
+    url_base: InitVar[URL | str] = "/"
+    schema_path: InitVar[str] = "schema.json"
+    name: str | None = None
+    doc_uis: InitVar[Sequence["APIDocUI"]] = field(default=())
 
-    def __post_init__(self, schema_doc_uis: Sequence["APIDocUI"]):
+    url_base_: URL = field(init=False)
+    schema_url: URL = field(init=False)
+    doc_ui_urls: Sequence[URL] = field(init=False)
+
+    def __post_init__(self, url_base: URL | str, schema_path: str, doc_uis: Sequence["APIDocUI"]):
+        self.url_base_ = URL(url_base)
         self.schema.openapi = self.schema.openapi  # So that pydantic includes it in the dump. (bit of a hack 😭)
-        schema_url = add_fixed_response_resource(
+        self.schema_url = add_fixed_response_resource(
             self.app.router,
-            self.schema_path,
+            self.url_base_.joinpath(schema_path).path,
+            name=self.name,
             get_response_args=lambda: dict(
                 text=self.schema_dump_json(),
                 content_type="application/json",
             ),
         ).url_for()
-        self.api_doc_ui_urls = [schema_doc_ui.setup(self.app, schema_url) for schema_doc_ui in schema_doc_uis]
+        self.doc_ui_urls = [doc_ui.setup(self) for doc_ui in doc_uis]
 
     def schema_dump_json(self):
         return self.schema.model_dump_json(exclude_unset=True, indent=1, by_alias=True)
@@ -202,7 +209,7 @@ def operation(**kwargs: Unpack["GetOperationArgs"]):
 
 
 class APIDocUI(Protocol):
-    def setup(self, app: Application, schema_url: URL) -> URL: ...
+    def setup(self, openapi_app: OpenAPIApp) -> URL: ...
 
 
 class GetOperationArgs(TypedDict):

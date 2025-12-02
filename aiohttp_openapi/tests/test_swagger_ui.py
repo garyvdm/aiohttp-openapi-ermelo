@@ -24,7 +24,7 @@ async def swagger_app():
     openapi_app = OpenAPIApp(
         app,
         OpenAPI(info=Info(title="test-api", version="v0.0.1")),
-        api_doc_uis=(SwaggerUI(),),
+        doc_uis=(SwaggerUI(),),
     )
     openapi_app.add_route("GET", "/hello", hello, operation=Operation(tags=["foo"]))
 
@@ -34,16 +34,44 @@ async def swagger_app():
 
 async def test_basics():
     async with swagger_app() as (client, openapi_app):
-        resp: ClientResponse = await client.get(cast(OpenAPIApp, openapi_app).api_doc_ui_urls[0])
+        resp: ClientResponse = await client.get(cast(OpenAPIApp, openapi_app).doc_ui_urls[0])
         assert resp.status == 200
         assert resp.content_type == "text/html"
         print(await resp.text())
 
 
+async def test_multiple_api():
+    app = Application()
+    openapi_app1 = OpenAPIApp(
+        app,
+        OpenAPI(info=Info(title="api 1", version="v0.0.1")),
+        name="api1",
+        url_base="/api1/",
+        doc_uis=(SwaggerUI(),),
+    )
+    openapi_app1.add_route("GET", "/api1/hello", hello)
+
+    openapi_app2 = OpenAPIApp(
+        app,
+        OpenAPI(info=Info(title="api 2", version="v0.0.2")),
+        name="api2",
+        url_base="/api2/",
+        doc_uis=(SwaggerUI(),),
+    )
+    openapi_app2.add_route("GET", "/api2/hello", hello)
+
+    async with setup_test_client(app) as client:
+        for openapi_app in (openapi_app1, openapi_app2):
+            resp: ClientResponse = await client.get(openapi_app.doc_ui_urls[0])
+            assert resp.status == 200
+            text = await resp.text()
+            assert openapi_app.schema_url.path in text
+
+
 @mark.playwright
 async def test_e2e(page: Page):
     async with swagger_app() as (client, openapi_app):
-        url = client.make_url(openapi_app.api_doc_ui_urls[0])
+        url = client.make_url(openapi_app.doc_ui_urls[0])
         await page.goto(str(url))
         # await page.pause()
         # Just some basic checks to assert that the schema was loaded

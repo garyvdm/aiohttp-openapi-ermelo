@@ -3,6 +3,7 @@ from textwrap import dedent
 from aiohttp import ClientResponse
 from aiohttp.web import Application, Request, Response
 from openapi_pydantic import Info, OpenAPI, Operation, PathItem
+from yarl import URL
 
 from aiohttp_openapi import OpenAPIApp, operation
 from aiohttp_openapi.tests.util import setup_test_client
@@ -14,11 +15,12 @@ async def hello(request: Request):
 
 
 async def test_schema_handler():
-    openapi_app = OpenAPIApp(Application(), OpenAPI(info=Info(title="test-api", version="v0.0.1")))
-    openapi_app.add_route("GET", "/", hello)
+    openapi_app = OpenAPIApp(Application(), OpenAPI(info=Info(title="test-api", version="v0.0.1")), url_base="/api/")
+    openapi_app.add_route("GET", "/api/hello", hello)
+    assert openapi_app.schema_url == URL("/api/schema.json")
 
     async with setup_test_client(openapi_app.app) as client:
-        resp: ClientResponse = await client.get("/schema.json")
+        resp: ClientResponse = await client.get(openapi_app.schema_url)
         assert resp.status == 200
         assert resp.content_type == "application/json"
         print(await resp.text())
@@ -31,7 +33,7 @@ async def test_schema_handler():
               "version": "v0.0.1"
              },
              "paths": {
-              "/": {
+              "/api/hello": {
                "get": {
                 "summary": "home"
                }
@@ -42,6 +44,20 @@ async def test_schema_handler():
         ).strip()
 
         assert await resp.text() == expected_text
+
+
+async def test_schema_handler_multiple_api():
+    app = Application()
+    openapi_app1 = OpenAPIApp(app, OpenAPI(info=Info(title="api 1", version="v0.0.1")), name="api1", url_base="/api1/")
+    openapi_app1.add_route("GET", "/api1/hello", hello)
+
+    openapi_app2 = OpenAPIApp(app, OpenAPI(info=Info(title="api 2", version="v0.0.2")), name="api2", url_base="/api2/")
+    openapi_app2.add_route("GET", "/api2/hello", hello)
+
+    async with setup_test_client(app) as client:
+        for openapi_app in (openapi_app1, openapi_app2):
+            resp: ClientResponse = await client.get(openapi_app.schema_url)
+            assert resp.status == 200
 
 
 def test_add_route():
