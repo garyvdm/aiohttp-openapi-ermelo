@@ -1,7 +1,9 @@
 from collections.abc import Callable, Sequence
 from dataclasses import InitVar, dataclass, field
+from functools import partial
 from logging import getLogger
 from typing import NotRequired, Protocol, TypedDict, Unpack, cast
+from warnings import warn
 
 from aiohttp import hdrs
 from aiohttp.abc import AbstractView
@@ -33,6 +35,7 @@ __all__ = [
     "SwaggerUI",
     "APIDocUI",
     "operation",
+    "OpenAPIWarning",
 ]
 
 logger = getLogger("aiohttp_openapi")
@@ -336,6 +339,12 @@ class ResourceAddRouteArgs(GetOperationArgs):
     expect_handler: NotRequired[_ExpectHandler]
 
 
+class OpenAPIWarning(Warning): ...
+
+
+openapi_warn = partial(warn, category=OpenAPIWarning, stacklevel=3)
+
+
 def get_operation(
     handler: Callable,
     operation: Operation | None = None,
@@ -353,18 +362,15 @@ def get_operation(
         decorated_operation = getattr(handler, "open_api_operation", None)
         if decorated_operation:
             if operation:
-                logger.warning(
-                    f"Both {source} provided and decorated with @operation. Ignoring decoration with @operation.",
-                    stacklevel=3,
+                openapi_warn(
+                    f"Both {source} provided and decorated with @operation. Ignoring decoration with @operation."
                 )
             else:
                 source = "decorated with @operation"
                 operation = decorated_operation
         if json:
             if operation:
-                logger.warning(
-                    f"Both {source} and json argument provided. Ignoring json argument.", stacklevel=LOG_STACK_LEVEL
-                )
+                openapi_warn(f"Both {source} and json argument provided. Ignoring json argument.")
             else:
                 source = "json argument"
                 operation = Operation.model_validate_json(json)
@@ -373,7 +379,7 @@ def get_operation(
             yaml_source = "yaml argument"
         if yaml_docstring and handler.__doc__:
             if yaml:
-                logger.warning(
+                openapi_warn(
                     "Both yaml argument and yaml docstring provided. Ignoring yaml docstring.",
                     stacklevel=LOG_STACK_LEVEL,
                 )
@@ -383,26 +389,20 @@ def get_operation(
                 yaml = after if after else before
         if yaml:
             if operation:
-                logger.warning(
-                    f"Both {source} and {yaml_source} provided. Ignoring {yaml_source}.", stacklevel=LOG_STACK_LEVEL
-                )
+                openapi_warn(f"Both {source} and {yaml_source} provided. Ignoring {yaml_source}.")
             else:
                 try:
                     from yaml import safe_load
                     from yaml.error import YAMLError
-                except ImportError:
-                    logger.exception(
-                        "Could not import yaml. Please install aiohttp_openapi[yaml]", stacklevel=LOG_STACK_LEVEL
-                    )
+                except ImportError as e:
+                    raise ImportError("Could not import yaml. Please install aiohttp-openapi-ermelo[yaml]") from e
                 else:
                     try:
                         operation = Operation.model_validate(safe_load(yaml))
                     except YAMLError as e:
-                        logger.warning(e, stacklevel=LOG_STACK_LEVEL)
+                        openapi_warn(str(e))
     except ValidationError as e:
-        logger.warning(e, stacklevel=LOG_STACK_LEVEL)
-    except Exception:
-        logger.warning("Error loading operation:", stacklevel=LOG_STACK_LEVEL, exc_info=True)
+        openapi_warn(str(e))
     if operation is None:
         operation = Operation()
     if summary_docstring and not yaml_docstring and not operation.summary and handler.__doc__:
@@ -410,7 +410,7 @@ def get_operation(
 
     for key in operation_args:
         if key in operation.model_fields_set:
-            logger.warning(
+            openapi_warn(
                 f"{key} argument provided, and already provided by {source}. Overwriting with {key} argument.",
                 stacklevel=LOG_STACK_LEVEL,
             )
