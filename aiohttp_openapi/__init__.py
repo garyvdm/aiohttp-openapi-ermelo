@@ -32,6 +32,7 @@ __all__ = [
     "OpenAPIResource",
     "SwaggerUI",
     "APIDocUI",
+    "operation",
 ]
 
 logger = getLogger("aiohttp_openapi")
