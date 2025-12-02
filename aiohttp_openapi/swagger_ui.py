@@ -80,10 +80,11 @@ class SwaggerUI(BaseModel):
     on browser-supplied cookies (which this setting enables sending) that Swagger UI cannot control. """
 
     def setup(self, openapi_app: "OpenAPIApp") -> URL:
+        ui_path = openapi_app.url_base_.join(URL(self.ui_path)).path
         static_resource = partial(
             add_importlib_resource,
             openapi_app.app.router,
-            openapi_app.url_base_.joinpath(self.ui_path),
+            ui_path,
             importlib.resources.files("aiohttp_openapi").joinpath("contrib-ui/swagger-ui/"),
             append_version=True,
         )
@@ -100,7 +101,7 @@ class SwaggerUI(BaseModel):
         )
         return add_fixed_response_resource(
             openapi_app.app.router,
-            openapi_app.url_base_.joinpath(self.ui_path).path,
+            ui_path,
             name=f"{openapi_app.name}-swagger-ui" if openapi_app.name else None,
             text=html_text,
             content_type="text/html",

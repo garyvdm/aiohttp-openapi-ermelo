@@ -45,7 +45,7 @@ class OpenAPIApp:
     app: Application
     schema: OpenAPI
     url_base: InitVar[URL | str] = "/"
-    schema_path: InitVar[str] = "schema.json"
+    schema_path: InitVar[str | URL] = "schema.json"
     name: str | None = None
     doc_uis: InitVar[Sequence["APIDocUI"]] = field(default=())
 
@@ -53,12 +53,12 @@ class OpenAPIApp:
     schema_url: URL = field(init=False)
     doc_ui_urls: Sequence[URL] = field(init=False)
 
-    def __post_init__(self, url_base: URL | str, schema_path: str, doc_uis: Sequence["APIDocUI"]):
+    def __post_init__(self, url_base: URL | str, schema_path: str | URL, doc_uis: Sequence["APIDocUI"]):
         self.url_base_ = URL(url_base)
         self.schema.openapi = self.schema.openapi  # So that pydantic includes it in the dump. (bit of a hack 😭)
         self.schema_url = add_fixed_response_resource(
             self.app.router,
-            self.url_base_.joinpath(schema_path).path,
+            self.url_base_.join(URL(schema_path)).path,
             name=self.name,
             get_response_args=lambda: dict(
                 text=self.schema_dump_json(),
@@ -83,11 +83,13 @@ class OpenAPIApp:
         expect_handler: _ExpectHandler | None = None,
         **operation_args: Unpack["GetOperationArgs"],
     ) -> AbstractRoute:
+        path = self.url_base_.join(URL(path)).path
         operation = get_operation(handler, **operation_args)
         setattr(self._get_or_create_path_item(path), check_valid_method(method), operation)
         return self.app.router.add_route(method, path, handler, name=name, expect_handler=expect_handler)
 
-    def add_resource(self, path: str, *, name: str | None = None) -> "OpenAPIResource":
+    def add_resource(self, path: str, *, name: str | None = None, rel_to_base: bool | None = None) -> "OpenAPIResource":
+        path = self.url_base_.join(URL(path)).path
         return OpenAPIResource(self._get_or_create_path_item(path), self.app.router.add_resource(path, name=name))
 
     def add_get(

@@ -10,13 +10,13 @@ from aiohttp_openapi.tests.util import setup_test_client
 
 
 async def hello(request: Request):
-    "home"
+    "Says Hello"
     return Response(text="Hello, world")
 
 
 async def test_schema_handler():
     openapi_app = OpenAPIApp(Application(), OpenAPI(info=Info(title="test-api", version="v0.0.1")), url_base="/api/")
-    openapi_app.add_route("GET", "/api/hello", hello)
+    openapi_app.add_route("GET", "hello", hello)
     assert openapi_app.schema_url == URL("/api/schema.json")
 
     async with setup_test_client(openapi_app.app) as client:
@@ -35,7 +35,7 @@ async def test_schema_handler():
              "paths": {
               "/api/hello": {
                "get": {
-                "summary": "home"
+                "summary": "Says Hello"
                }
               }
              }
@@ -49,10 +49,10 @@ async def test_schema_handler():
 async def test_schema_handler_multiple_api():
     app = Application()
     openapi_app1 = OpenAPIApp(app, OpenAPI(info=Info(title="api 1", version="v0.0.1")), name="api1", url_base="/api1/")
-    openapi_app1.add_route("GET", "/api1/hello", hello)
+    openapi_app1.add_route("GET", "hello", hello)
 
     openapi_app2 = OpenAPIApp(app, OpenAPI(info=Info(title="api 2", version="v0.0.2")), name="api2", url_base="/api2/")
-    openapi_app2.add_route("GET", "/api2/hello", hello)
+    openapi_app2.add_route("GET", "hello", hello)
 
     async with setup_test_client(app) as client:
         for openapi_app in (openapi_app1, openapi_app2):
@@ -60,19 +60,38 @@ async def test_schema_handler_multiple_api():
             assert resp.status == 200
 
 
-def test_add_route():
-    openapi_app = OpenAPIApp(Application(), OpenAPI(info=Info(title="test-api", version="v0.0.1")))
-    openapi_app.add_route("GET", "/", hello)
+def test_add_route_rel():
+    openapi_app = OpenAPIApp(
+        Application(),
+        OpenAPI(info=Info(title="test-api", version="v0.0.1")),
+        url_base="/api/",
+    )
+    route = openapi_app.add_route("GET", "hello", hello)
+    assert route.url_for().path == "/api/hello"
+    assert openapi_app.schema.paths == {"/api/hello": PathItem(get=Operation(summary="Says Hello"))}
 
-    assert openapi_app.schema.paths == {"/": PathItem(get=Operation(summary="home"))}
+
+def test_add_route_abs():
+    openapi_app = OpenAPIApp(
+        Application(),
+        OpenAPI(info=Info(title="test-api", version="v0.0.1")),
+        url_base="/api/",
+    )
+    route = openapi_app.add_route("GET", "/hello", hello)
+    assert route.url_for().path == "/hello"
+    assert openapi_app.schema.paths == {"/hello": PathItem(get=Operation(summary="Says Hello"))}
 
 
 def test_add_resource_route():
-    openapi_app = OpenAPIApp(Application(), OpenAPI(info=Info(title="test-api", version="v0.0.1")))
-    home_resource = openapi_app.add_resource("/")
+    openapi_app = OpenAPIApp(
+        Application(),
+        OpenAPI(info=Info(title="test-api", version="v0.0.1")),
+        url_base="/api/",
+    )
+    home_resource = openapi_app.add_resource("hello")
     home_resource.add_route("GET", hello)
 
-    assert openapi_app.schema.paths == {"/": PathItem(get=Operation(summary="home"))}
+    assert openapi_app.schema.paths == {"/api/hello": PathItem(get=Operation(summary="Says Hello"))}
 
 
 def test_add_route_helpers():
@@ -89,16 +108,16 @@ def test_add_route_helpers():
 
     assert openapi_app.schema.paths == {
         "/": PathItem(
-            get=Operation(summary="home"),
-            head=Operation(summary="home"),
-            put=Operation(summary="home"),
-            post=Operation(summary="home"),
-            patch=Operation(summary="home"),
-            delete=Operation(summary="home"),
-            options=Operation(summary="home"),
+            get=Operation(summary="Says Hello"),
+            head=Operation(summary="Says Hello"),
+            put=Operation(summary="Says Hello"),
+            post=Operation(summary="Says Hello"),
+            patch=Operation(summary="Says Hello"),
+            delete=Operation(summary="Says Hello"),
+            options=Operation(summary="Says Hello"),
         ),
-        "/no-head": PathItem(get=Operation(summary="home")),
-        "/only-head": PathItem(head=Operation(summary="home")),
+        "/no-head": PathItem(get=Operation(summary="Says Hello")),
+        "/only-head": PathItem(head=Operation(summary="Says Hello")),
     }
 
 
@@ -118,16 +137,16 @@ def test_resource_add_route_helpers():
 
     assert openapi_app.schema.paths == {
         "/": PathItem(
-            get=Operation(summary="home"),
-            head=Operation(summary="home"),
-            put=Operation(summary="home"),
-            post=Operation(summary="home"),
-            patch=Operation(summary="home"),
-            delete=Operation(summary="home"),
-            options=Operation(summary="home"),
+            get=Operation(summary="Says Hello"),
+            head=Operation(summary="Says Hello"),
+            put=Operation(summary="Says Hello"),
+            post=Operation(summary="Says Hello"),
+            patch=Operation(summary="Says Hello"),
+            delete=Operation(summary="Says Hello"),
+            options=Operation(summary="Says Hello"),
         ),
-        "/no-head": PathItem(get=Operation(summary="home")),
-        "/only-head": PathItem(head=Operation(summary="home")),
+        "/no-head": PathItem(get=Operation(summary="Says Hello")),
+        "/only-head": PathItem(head=Operation(summary="Says Hello")),
     }
 
 
