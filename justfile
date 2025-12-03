@@ -1,19 +1,23 @@
-default: ruff-fix mypy testall
-[parallel]
-check: ruff-check mypy testall
-test: (_test "3.14" "")
+# Fix, check and test all
+default: ruff-fix mypy test-all
 
-# Run tests across all versions.
+# Check and test all
+[parallel]
+check: ruff-check mypy test-all
+
 # We only run the playwright tests on the latest python version as they are slow.
 # When running the main tests, deselect no_yaml so we can clearly see other skips.
 # We only run the no_yaml on the latest python version to save on venv setups.
+# Run tests across all configurations.
 [parallel]
-testall:  (_test "3.14" "-m 'not no_yaml'") (_test "3.13" "-m 'not playwright and not no_yaml'") (_test "3.12" "-m 'not playwright and not no_yaml'") (_test "3.11" "-m 'not playwright and not no_yaml'") test_no_yaml
+test-all:  (_test "3.14" "-m 'not no_yaml'") (_test "3.13" "-m 'not playwright and not no_yaml'") (_test "3.12" "-m 'not playwright and not no_yaml'") (_test "3.11" "-m 'not playwright and not no_yaml'") test-no-yaml
+
+test: (_test "3.14" "")
 
 _test version args:
     uv run --isolated --python python{{version}} --extra test --extra yaml -- pytest --color yes {{args}} | tac | tac
 
-test_no_yaml:
+test-no-yaml:
     uv run --isolated --python python3.14 --extra test -- pytest --color yes -m no_yaml | tac | tac
 
 mypy: 
