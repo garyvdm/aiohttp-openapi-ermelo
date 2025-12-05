@@ -48,13 +48,22 @@ class OpenAPIApp:
     app: Application
     schema: OpenAPI
     url_base: InitVar[URL | str] = "/"
+    """Base URL path for this api.
+
+    This is used for the schema path, the paths for any doc ui, and for any routes/operation added.
+    """
     schema_path: InitVar[str | URL] = "schema.json"
+    """URL path to serve the schema on. This is combined with url_base."""
     name: str | None = None
+    """Name for schema route, and used for the name for routes for any document UIs."""
     doc_uis: InitVar[Sequence["APIDocUI"]] = field(default=())
+    """List of document UIs to serve."""
 
     url_base_: URL = field(init=False)
     schema_url: URL = field(init=False)
+    """Full url paths for the schema."""
     doc_ui_urls: Sequence[URL] = field(init=False)
+    """List of the full url paths for the document UIs."""
 
     def __post_init__(self, url_base: URL | str, schema_path: str | URL, doc_uis: Sequence["APIDocUI"]):
         self.url_base_ = URL(url_base)

@@ -2,12 +2,30 @@
 name = "aiohttp-openapi-ermelo"
 description = "Builds openapi schemas for aiohttp apps."
 readme = "README.md"
-requires-python = ">=3.11"  # 3.10 not supported due to lack of typing.Unpack
+requires-python = ">=3.11" # 3.10 not supported due to lack of typing.Unpack
 dependencies = ["aiohttp", "pydantic", "openapi-pydantic"]
 dynamic = ["version"]
+license = "Apache-2.0"
+classifiers = [
+    "Development Status :: 5 - Production/Stable",
+    "Intended Audience :: Developers",
+    "Programming Language :: Python :: 3",
+    "Framework :: AsyncIO",
+    "Topic :: Internet :: WWW/HTTP",
+]
+
+[project.urls]
+HomePage = "https://github.com/garyvdm/aiohttp-openapi-ermelo"
 
 [project.optional-dependencies]
-test = ["pytest", "pytest-aiohttp", "pytest-playwright-asyncio", "mypy", "types-PyYAML", "pytest-cov"]
+test = [
+    "pytest",
+    "pytest-aiohttp",
+    "pytest-playwright-asyncio",
+    "mypy",
+    "types-PyYAML",
+    "pytest-cov",
+]
 yaml = ["pyyaml"]
 
 [build-system]
@@ -20,12 +38,12 @@ aiohttp_openapi = ["contrib-ui/swagger-ui/*"]
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
 markers = ["playwright", "no_yaml"]
-asyncio_default_test_loop_scope="session"
+asyncio_default_test_loop_scope = "session"
 
 [tool.ruff]
 line-length = 120
 target-version = "py311"
 lint.extend-select = [
     "I",  # isort
-    "UP",  # pyupgrade
+    "UP", # pyupgrade
 ]

@@ -7,8 +7,7 @@ from openapi_pydantic import Info, OpenAPI, Operation
 from playwright.async_api import Page, expect
 from pytest import mark
 
-from aiohttp_openapi import OpenAPIApp
-from aiohttp_openapi.swagger_ui import SwaggerUI
+from aiohttp_openapi import OpenAPIApp, SwaggerUI
 from aiohttp_openapi.tests.util import setup_test_client
 
 
