@@ -2,6 +2,7 @@ from base64 import urlsafe_b64encode
 from collections.abc import Callable, Mapping
 from hashlib import sha256
 from typing import TYPE_CHECKING, Any
+from weakref import ReferenceType, ref
 
 from aiohttp.web import HTTPMovedPermanently, Request, Response
 from aiohttp.web_urldispatcher import (
@@ -51,14 +52,12 @@ def add_importlib_resource(
     append_version: bool = False,
     **response_args,
 ) -> Resource:
-    body = files.joinpath(path).read_bytes()
     return add_fixed_response_resource(
         routes,
         str(URL(url_prefix) / path),
         name=name,
         append_version=append_version,
-        body=body,
-        **response_args,
+        get_response_args=lambda: dict(body=files.joinpath(path).read_bytes(), **response_args),
     )
 
 
@@ -66,6 +65,7 @@ class FixedResponseResource(PlainResource):
     VERSION_KEY = "v"
 
     _response_args: Mapping[str, Any] | None
+    _response_args_ref: ReferenceType[Mapping[str, Any]] | None
     _hash: None | str
 
     def __init__(
@@ -81,20 +81,28 @@ class FixedResponseResource(PlainResource):
         self._append_version = append_version
         if get_response_args and response_args:
             raise ValueError("Cannot provide both get_response_args and response_args")
+        self._response_args = None
+        self._response_args_ref = None
         if response_args:
             self._response_args = response_args
         if get_response_args:
             self._get_response_args = get_response_args
-            self._response_args = None
         self._hash = None
         self.add_route("GET", self._handle)
         self.add_route("HEAD", self._handle)
 
+    def _get_response_args(self):
+        if self._response_args:
+            return self._response_args
+        if self._response_args_ref and (response_args := self._response_args_ref()):
+            return response_args
+        response_args = self._get_response_args()
+        self._response_args_ref = ref(response_args)
+        return response_args
+
     def _get_hash(self):
-        if self._response_args is None:
-            self._response_args = self._get_response_args()
         if self._hash is None:
-            mock_response = Response(**self._response_args)
+            mock_response = Response(**self._get_response_args())
             assert isinstance(mock_response.body, bytes)
             self._hash = hash_body(mock_response.body)
         return self._hash
@@ -110,8 +118,7 @@ class FixedResponseResource(PlainResource):
         if hash_match == hash:
             response = Response(status=304, reason="Not Modified")
         else:
-            assert self._response_args is not None
-            response = Response(**self._response_args)
+            response = Response(**self._get_response_args())
         response.headers["ETag"] = hash
         response.headers["Cache-Control"] = "public, max-age=31536000" if request_version else "public"
         return response

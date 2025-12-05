@@ -81,30 +81,33 @@ class SwaggerUI(BaseModel):
 
     def setup(self, openapi_app: "OpenAPIApp") -> URL:
         ui_path = openapi_app.url_base_.join(URL(self.ui_path)).path
-        static_resource = partial(
+        add_static_resource = partial(
             add_importlib_resource,
             openapi_app.app.router,
             ui_path,
             importlib.resources.files("aiohttp_openapi").joinpath("contrib-ui/swagger-ui/"),
             append_version=True,
         )
-        html_text = html_template.substitute(
-            url=openapi_app.schema_url,
-            settings=self.model_dump_json(exclude_unset=True),
-            css=static_resource("swagger-ui.css", content_type="text/css").url_for(),
-            favicon_32=static_resource("favicon-32x32.png", content_type="image/png").url_for(),
-            favicon_16=static_resource("favicon-16x16.png", content_type="image/png").url_for(),
-            bundle_js=static_resource("swagger-ui-bundle.js", content_type="text/javascript").url_for(),
-            standalone_preset_js=static_resource(
-                "swagger-ui-standalone-preset.js", content_type="text/javascript"
-            ).url_for(),
+        static_resources = dict(
+            css=add_static_resource("swagger-ui.css", content_type="text/css"),
+            favicon_32=add_static_resource("favicon-32x32.png", content_type="image/png"),
+            favicon_16=add_static_resource("favicon-16x16.png", content_type="image/png"),
+            bundle_js=add_static_resource("swagger-ui-bundle.js", content_type="text/javascript"),
+            standalone_preset_js=add_static_resource("swagger-ui-standalone-preset.js", content_type="text/javascript"),
         )
+        settings_json = self.model_dump_json(exclude_unset=True)
         return add_fixed_response_resource(
             openapi_app.app.router,
             ui_path,
             name=f"{openapi_app.name}-swagger-ui" if openapi_app.name else None,
-            text=html_text,
-            content_type="text/html",
+            get_response_args=lambda: dict(
+                text=html_template.substitute(
+                    url=openapi_app.schema_url,
+                    settings=settings_json,
+                    **{key: value.url_for() for key, value in static_resources.items()},
+                ),
+                content_type="text/html",
+            ),
         ).url_for()
 
 
