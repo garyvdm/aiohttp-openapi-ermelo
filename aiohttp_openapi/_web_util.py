@@ -86,7 +86,7 @@ class FixedResponseResource(PlainResource):
         if response_args:
             self._response_args = response_args
         if get_response_args:
-            self._get_response_args = get_response_args
+            self._get_response_args = get_response_args  # type: ignore[assignment]
         self._hash = None
         self.add_route("GET", self._handle)
         self.add_route("HEAD", self._handle)
