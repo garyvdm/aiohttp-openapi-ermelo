@@ -1,0 +1,32 @@
+#!/bin/bash
+
+set -e
+
+json=$(npm view redoc --json)
+version=$(jq -r '."dist-tags".latest' <<< "${json}")
+tar_url=$(jq -r '.dist.tarball' <<< "${json}")
+
+tar_temp_file=$(mktemp redoc-ui.XXXXXXXXXX.tar --tmpdir)
+trap "rm -f '$tar_temp_file'" EXIT
+curl --show-error --silent --fail --location --output $tar_temp_file $tar_url
+
+cd $(dirname ${BASH_SOURCE[0]})
+
+old_version=$(cat redoc-ui/VERSION || true)
+
+rm -rf redoc-ui
+mkdir redoc-ui
+cd redoc-ui
+# bsdtar --file $tar_temp_file --list
+bsdtar --file $tar_temp_file --extract --strip-components=1  \
+    "package/LICENSE"
+bsdtar --file $tar_temp_file --extract --strip-components=2  \
+    "package/bundles/redoc.standalone.js" \
+    "package/bundles/redoc.standalone.js.map" 
+
+echo "$version" > VERSION
+if [[ $old_version != $version ]]; then
+    echo "Redoc UI: $old_version -> $version"
+else
+    echo "Redoc UI: No change in version"
+fi

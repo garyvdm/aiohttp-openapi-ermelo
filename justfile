@@ -33,3 +33,4 @@ ruff-check:
 
 update-ui:
     aiohttp_openapi/contrib-ui/dw-latest-swagger
+    aiohttp_openapi/contrib-ui/dw-latest-redoc

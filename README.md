@@ -1,6 +1,6 @@
 # aiohttp-openapi-ermelo
 
-This library helps you to build openapi schemas for your aiohttp app, and serve documentation uis (Swagger) for the schema.
+This library helps you to build openapi schemas for your aiohttp app, and serve documentation uis (Swagger, Redoc) for the schema.
 
 ## Installation
 
@@ -12,7 +12,7 @@ Once you have created an aiohttp Application, create an OpenAPIApp, and specify 
 
 ```python
 from aiohttp.web import Application, Request, Response
-from aiohttp_openapi import OpenAPIApp, SwaggerUI, operation
+from aiohttp_openapi import OpenAPIApp, SwaggerUI, RedocUI operation
 from openapi_pydantic import Info, OpenAPI, Operation
 
 app = Application()
@@ -20,7 +20,10 @@ api = OpenAPIApp(
     app,
     OpenAPI(info=Info(version="1.0.0", title="Petstore")),
     url_base="/api/",
-    doc_uis=(SwaggerUI(),),
+    doc_uis=(
+        SwaggerUI(),
+        RedocUI(),
+    ),
 )
 ```
 

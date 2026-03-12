@@ -17,9 +17,13 @@
     "python.testing.pytestArgs": [
         "--color=yes",
         "-rA",
+        "--headed",
         // "-v",
     ],
     "python.analysis.inlayHints.pytestParameters": true,
     "python.analysis.inlayHints.functionReturnTypes": true,
     "python.analysis.typeCheckingMode": "standard",
+    "cSpell.words": [
+        "Redoc"
+    ],
 }

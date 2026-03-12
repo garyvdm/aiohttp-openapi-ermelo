@@ -27,11 +27,13 @@ from pydantic import ValidationError
 from yarl import URL
 
 from aiohttp_openapi._web_util import add_fixed_response_resource
+from aiohttp_openapi.redoc_ui import RedocUI
 from aiohttp_openapi.swagger_ui import SwaggerUI
 
 __all__ = [
     "OpenAPIApp",
     "OpenAPIResource",
+    "RedocUI",
     "SwaggerUI",
     "APIDocUI",
     "operation",
