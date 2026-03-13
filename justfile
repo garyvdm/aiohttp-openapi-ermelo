@@ -31,5 +31,8 @@ ruff-check:
     ruff format --check .
     ruff check .
 
-update-ui:
+upgrade:
+    uv sync --upgrade --all-extras
+
+upgrade-uis:
     aiohttp_openapi/contrib-ui/dw-latest-swagger
